@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced NLP Analyzer</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for custom theme and font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#1e40af', // Darker Blue
+                        'secondary-gray': '#f3f4f6', // Light Gray background
+                        'card-bg': '#ffffff',
+                        'success-green': '#10b981',
+                        'warning-red': '#ef4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Use Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for animations and professional feel */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            transition: background-color 0.3s ease;
+        }
+        .nav-link {
+            transition: color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+            position: relative;
+        }
+        .nav-link:hover {
+            color: #3b82f6;
+            transform: translateY(-1px);
+        }
+        .nav-link.active-link {
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .nav-link.active-link::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: #1e40af;
+            border-radius: 9999px;
+            animation: slideIn 0.3s ease-out;
+        }
+        .card {
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .result-box {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        .form-input, .form-textarea {
+            transition: all 0.2s ease;
+        }
+        .form-input:focus, .form-textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        .btn-primary {
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .btn-primary:hover {
+            background-color: #1e40af;
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-primary-blue">NLP Lab</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="#" class="nav-link px-3 py-2 text-gray-700 text-sm font-medium active-link" data-view="home">Home</a>
+                    <a href="#" class="nav-link px-3 py-2 text-gray-700 text-sm font-medium" data-view="preprocessing">Preprocessing</a>
+                    <a href="#" class="nav-link px-3 py-2 text-gray-700 text-sm font-medium" data-view="features">Features</a>
+                    <a href="#" class="nav-link px-3 py-2 text-gray-700 text-sm font-medium" data-view="spam">Spam Detection</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+
+        <!-- Loading Spinner and Error Message Container -->
+        <div id="status-message" class="hidden fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+            <div id="loading-spinner" class="hidden flex flex-col items-center bg-white p-6 rounded-xl shadow-2xl">
+                <svg class="animate-spin h-8 w-8 text-primary-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="mt-3 text-gray-700">Processing...</span>
+            </div>
+            <div id="error-message" class="hidden flex flex-col items-center bg-warning-red p-6 rounded-xl shadow-2xl text-white">
+                <span class="font-bold text-lg">Error!</span>
+                <p id="error-text" class="mt-2 text-sm"></p>
+                <button onclick="hideStatus()" class="mt-4 px-4 py-2 bg-white text-warning-red font-semibold rounded-lg hover:bg-gray-100 transition duration-150">Close</button>
+            </div>
+        </div>
+
+        <!-- Home View -->
+        <section id="home-view" class="view-content transition-opacity duration-300">
+            <div class="text-center py-16 bg-card-bg rounded-xl shadow-lg">
+                <h1 class="text-4xl font-extrabold text-gray-800 mb-4">Welcome to the Advanced NLP Lab</h1>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">Explore core Natural Language Processing techniques from text cleaning to machine learning inference. Use the navigation bar above to start.</p>
+                <div class="mt-8 flex justify-center space-x-6">
+                    <div class="p-6 bg-secondary-gray rounded-xl w-64 card">
+                        <h3 class="text-lg font-semibold text-primary-blue mb-2">Preprocessing</h3>
+                        <p class="text-sm text-gray-600">Clean and normalize raw text for analysis.</p>
+                    </div>
+                    <div class="p-6 bg-secondary-gray rounded-xl w-64 card">
+                        <h3 class="text-lg font-semibold text-primary-blue mb-2">Features</h3>
+                        <p class="text-sm text-gray-600">Transform text into numerical data for models.</p>
+                    </div>
+                    <div class="p-6 bg-secondary-gray rounded-xl w-64 card">
+                        <h3 class="text-lg font-semibold text-primary-blue mb-2">Spam Detection</h3>
+                        <p class="text-sm text-gray-600">Categorical prediction using a Naive Bayes model.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Preprocessing View -->
+        <section id="preprocessing-view" class="view-content hidden transition-opacity duration-300">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Text Preprocessing</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Input and Options Card (Column 1) -->
+                <div class="md:col-span-1 bg-card-bg p-6 rounded-xl shadow-lg h-full card">
+                    <h3 class="text-xl font-semibold text-primary-blue mb-4 border-b pb-2">Input & Controls</h3>
+                    <textarea id="raw-text" rows="8" placeholder="Enter the text (paragraph/email) you want to preprocess here..."
+                              class="form-textarea w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-primary-blue focus:border-primary-blue"></textarea>
+                    
+                    <div class="mt-4 space-y-3">
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="checkbox" id="tokenization" checked class="form-checkbox text-primary-blue rounded">
+                            <span>Tokenization</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="checkbox" id="lowercase" class="form-checkbox text-primary-blue rounded">
+                            <span>Lowercasing</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="checkbox" id="stopword-removal" class="form-checkbox text-primary-blue rounded">
+                            <span>Stopword Removal</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="checkbox" id="lemmatization" class="form-checkbox text-primary-blue rounded">
+                            <span>Lemmatization</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="checkbox" id="stemming" class="form-checkbox text-primary-blue rounded">
+                            <span>Stemming</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="checkbox" id="remove-chars-numbers" class="form-checkbox text-primary-blue rounded">
+                            <span>Remove Special Chars/Numbers</span>
+                        </label>
+                    </div>
+
+                    <button onclick="handlePreprocessing()" id="preprocess-btn"
+                            class="btn-primary w-full mt-6 bg-primary-blue text-white font-semibold py-3 rounded-lg shadow-md hover:bg-blue-800 transition duration-200">
+                        Process Text
+                    </button>
+                    <button onclick="copyProcessedText()" id="copy-btn" disabled
+                            class="w-full mt-2 bg-gray-400 text-white font-semibold py-3 rounded-lg shadow-md transition duration-200 disabled:opacity-50">
+                        Copy Processed Text
+                    </button>
+                </div>
+
+                <!-- Results Card (Column 2-3) -->
+                <div class="md:col-span-2 bg-card-bg p-6 rounded-xl shadow-lg card">
+                    <h3 class="text-xl font-semibold text-primary-blue mb-4 border-b pb-2">Results (Original vs. Processed)</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="border p-4 rounded-lg bg-secondary-gray result-box">
+                            <h4 class="font-bold text-gray-700 mb-2">Original Text</h4>
+                            <div id="original-output" class="text-sm text-gray-800 whitespace-pre-wrap min-h-[150px] overflow-y-auto">
+                                The original text will appear here.
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-lg bg-secondary-gray result-box">
+                            <h4 class="font-bold text-gray-700 mb-2">Processed Text</h4>
+                            <div id="processed-output" class="text-sm text-gray-800 whitespace-pre-wrap min-h-[150px] overflow-y-auto">
+                                The processed output will appear here.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Extraction View -->
+        <section id="features-view" class="view-content hidden transition-opacity duration-300">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Feature Extraction</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Controls Card (Column 1) -->
+                <div class="md:col-span-1 bg-card-bg p-6 rounded-xl shadow-lg h-full card">
+                    <h3 class="text-xl font-semibold text-primary-blue mb-4 border-b pb-2">Method Selection</h3>
+                    
+                    <div class="mt-4 mb-6">
+                        <h4 class="font-semibold text-gray-700 mb-2">Preprocessed Text Input</h4>
+                        <textarea id="feature-input-text" rows="4" readonly placeholder="Processed text from the previous tab will load here. You can also manually edit it."
+                                  class="form-textarea w-full p-3 border border-gray-300 rounded-lg bg-gray-50 resize-none"></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Tip: Use the Preprocessing tab first, or paste your clean text here.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <label class="flex items-center space-x-2 text-gray-700">
+                            <input type="radio" name="feature_method" value="bow" checked class="form-radio text-primary-blue">
+                            <span>Bag of Words (BoW)</span>
+                        </label>
+                        <p class="text-xs text-gray-500 ml-6">Simple frequency count of terms.</p>
+                        
+                        <label class="flex items-center space-x-2 text-gray-700 mt-4">
+                            <input type="radio" name="feature_method" value="tfidf" class="form-radio text-primary-blue">
+                            <span>TF-IDF</span>
+                        </label>
+                        <p class="text-xs text-gray-500 ml-6">Weighs terms by frequency and inverse document frequency.</p>
+
+                        <label class="flex items-center space-x-2 text-gray-700 mt-4">
+                            <input type="radio" name="feature_method" value="word2vec" class="form-radio text-primary-blue">
+                            <span>Word2Vec (Conceptual)</span>
+                        </label>
+                        <p class="text-xs text-gray-500 ml-6">Embedding method. (Returns conceptual placeholder data)</p>
+                    </div>
+
+                    <button onclick="handleFeatureExtraction()"
+                            class="btn-primary w-full mt-6 bg-primary-blue text-white font-semibold py-3 rounded-lg shadow-md hover:bg-blue-800 transition duration-200">
+                        Extract Features
+                    </button>
+                </div>
+
+                <!-- Results Card (Column 2-3) -->
+                <div class="md:col-span-2 bg-card-bg p-6 rounded-xl shadow-lg card">
+                    <h3 class="text-xl font-semibold text-primary-blue mb-4 border-b pb-2">Extracted Feature Vector</h3>
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-md font-medium text-gray-700">Vectorization Method: <span id="vectorizer-method" class="font-bold text-primary-blue">None</span></span>
+                        <span class="text-sm font-medium text-gray-500" id="feature-count">0 Features</span>
+                    </div>
+
+                    <div class="h-96 overflow-y-auto border border-gray-300 rounded-lg p-3 bg-secondary-gray result-box">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="sticky top-0 bg-gray-100 z-5">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Feature/Token</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Vector Value (Weight)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feature-table-body" class="bg-white divide-y divide-gray-200 text-sm text-gray-800">
+                                <!-- Results will be inserted here -->
+                                <tr><td colspan="2" class="text-center py-8 text-gray-500">Feature vector results will appear here after extraction.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Spam Detection View -->
+        <section id="spam-view" class="view-content hidden transition-opacity duration-300">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Naive Bayes Spam Detection</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Input Card (Column 1) -->
+                <div class="bg-card-bg p-6 rounded-xl shadow-lg h-full card">
+                    <h3 class="text-xl font-semibold text-primary-blue mb-4 border-b pb-2">Email Characteristics</h3>
+                    <p class="text-sm text-gray-600 mb-6">Select the characteristics of the email to predict its classification (Spam or Not Spam).</p>
+
+                    <form id="spam-form" class="space-y-6">
+                        <!-- Contains Offer -->
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">Contains an explicit Offer (e.g., "Buy Now")?</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="offer" value="Yes" class="form-radio text-primary-blue">
+                                    <span class="ml-2">Yes</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="offer" value="No" checked class="form-radio text-primary-blue">
+                                    <span class="ml-2">No</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Contains Link -->
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">Contains an unknown External Link (URL)?</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="link" value="Yes" class="form-radio text-primary-blue">
+                                    <span class="ml-2">Yes</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="link" value="No" checked class="form-radio text-primary-blue">
+                                    <span class="ml-2">No</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Contains Greeting -->
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">Contains a personalized Greeting (e.g., "Dear John")?</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="greeting" value="Yes" checked class="form-radio text-primary-blue">
+                                    <span class="ml-2">Yes</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="greeting" value="No" class="form-radio text-primary-blue">
+                                    <span class="ml-2">No</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Sender Known -->
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-1">Is the Sender known (trusted source)?</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="sender_known" value="Yes" checked class="form-radio text-primary-blue">
+                                    <span class="ml-2">Yes</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="sender_known" value="No" class="form-radio text-primary-blue">
+                                    <span class="ml-2">No</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                                class="btn-primary w-full mt-6 bg-primary-blue text-white font-semibold py-3 rounded-lg shadow-md hover:bg-blue-800 transition duration-200">
+                            Predict Classification
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Result Card (Column 2) -->
+                <div class="bg-card-bg p-6 rounded-xl shadow-lg h-full card">
+                    <h3 class="text-xl font-semibold text-primary-blue mb-4 border-b pb-2">Prediction Result</h3>
+                    <div id="prediction-result" class="flex flex-col items-center justify-center p-8 min-h-[300px] border-4 border-dashed border-gray-300 rounded-xl result-box">
+                        <p class="text-lg text-gray-500">Awaiting user input...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- Global State & Configuration ---
+        const API_BASE_URL = window.location.origin;
+        let lastProcessedText = "";
+
+        // --- Utility Functions ---
+
+        /** Shows the loading spinner */
+        function showLoading() {
+            document.getElementById('status-message').classList.remove('hidden');
+            document.getElementById('loading-spinner').classList.remove('hidden');
+            document.getElementById('error-message').classList.add('hidden');
+        }
+
+        /** Hides the status message container */
+        function hideStatus() {
+            document.getElementById('status-message').classList.add('hidden');
+            document.getElementById('loading-spinner').classList.add('hidden');
+            document.getElementById('error-message').classList.add('hidden');
+        }
+
+        /** Shows an error message */
+        function showError(message) {
+            document.getElementById('error-text').textContent = message;
+            document.getElementById('error-message').classList.remove('hidden');
+            document.getElementById('loading-spinner').classList.add('hidden');
+            document.getElementById('status-message').classList.remove('hidden');
+        }
+        
+        /** Switches the main content view */
+        function switchView(viewId) {
+            document.querySelectorAll('.view-content').forEach(view => {
+                view.classList.add('hidden');
+            });
+            document.getElementById(`${viewId}-view`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active-link');
+            });
+            document.querySelector(`.nav-link[data-view="${viewId}"]`).classList.add('active-link');
+
+            // Special handling for the features tab: load the latest processed text
+            if (viewId === 'features') {
+                document.getElementById('feature-input-text').value = lastProcessedText;
+            }
+        }
+
+        /** Utility for fetch with error handling */
+        async function secureFetch(url, options) {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Fetch failed:", error);
+                showError(error.message || "Could not connect to the backend server.");
+                return null;
+            }
+        }
+
+        // --- 1. Preprocessing Logic ---
+
+        function getPreprocessingOptions() {
+            return {
+                tokenization: document.getElementById('tokenization').checked,
+                lowercase: document.getElementById('lowercase').checked,
+                stopword_removal: document.getElementById('stopword-removal').checked,
+                lemmatization: document.getElementById('lemmatization').checked,
+                stemming: document.getElementById('stemming').checked,
+                remove_chars_numbers: document.getElementById('remove-chars-numbers').checked,
+            };
+        }
+
+        async function handlePreprocessing() {
+            const rawText = document.getElementById('raw-text').value.trim();
+            const options = getPreprocessingOptions();
+
+            if (!rawText) {
+                showError("Please enter some text before processing.");
+                return;
+            }
+
+            showLoading();
+
+            const payload = { text: rawText, options: options };
+            const result = await secureFetch(`${API_BASE_URL}/preprocess`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            hideStatus();
+
+            if (result) {
+                // Update outputs
+                document.getElementById('original-output').textContent = result.original_text;
+                document.getElementById('processed-output').textContent = result.processed_text;
+
+                // Update global state and enable copy button
+                lastProcessedText = result.processed_text;
+                document.getElementById('copy-btn').disabled = false;
+                document.getElementById('copy-btn').classList.remove('bg-gray-400');
+                document.getElementById('copy-btn').classList.add('bg-success-green', 'hover:bg-green-600');
+            }
+        }
+        
+        function copyProcessedText() {
+            const textToCopy = document.getElementById('processed-output').textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                // Flash success state on the button
+                const btn = document.getElementById('copy-btn');
+                const originalText = btn.textContent;
+                const originalClasses = btn.className;
+
+                btn.textContent = 'Copied!';
+                btn.classList.remove('bg-success-green');
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-600');
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.className = originalClasses;
+                }, 1500);
+
+            }).catch(err => {
+                showError('Failed to copy text: ' + err);
+            });
+        }
+
+        // --- 2. Feature Extraction Logic ---
+
+        async function handleFeatureExtraction() {
+            const processedText = document.getElementById('feature-input-text').value.trim();
+            const selectedMethod = document.querySelector('input[name="feature_method"]:checked').value;
+
+            if (!processedText) {
+                showError("The processed text field is empty. Please enter cleaned text or use the Preprocessing tab first.");
+                return;
+            }
+
+            showLoading();
+
+            const payload = { processed_text: processedText, method: selectedMethod };
+            const result = await secureFetch(`${API_BASE_URL}/feature_extract`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            hideStatus();
+
+            if (result) {
+                displayFeatureResults(result);
+            }
+        }
+
+        function displayFeatureResults(data) {
+            const tableBody = document.getElementById('feature-table-body');
+            tableBody.innerHTML = '';
+            document.getElementById('vectorizer-method').textContent = data.vectorizer;
+            document.getElementById('feature-count').textContent = `${data.features.length} Features`;
+
+            if (data.vectorizer.includes('Conceptual')) {
+                 // Handle Word2Vec conceptual output
+                data.vector.forEach((line) => {
+                    const row = tableBody.insertRow();
+                    row.className = 'bg-gray-50';
+                    row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap text-gray-500 italic" colspan="2">${line}</td>`;
+                });
+            } else {
+                // Handle BoW and TF-IDF outputs
+                data.features.forEach((feature, index) => {
+                    const value = data.vector[index];
+                    const row = tableBody.insertRow();
+                    row.className = 'hover:bg-gray-50 transition duration-100';
+                    row.innerHTML = `
+                        <td class="px-6 py-2 whitespace-nowrap font-medium text-gray-900">${feature}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-right font-mono text-gray-700">${value}</td>
+                    `;
+                });
+            }
+        }
+
+        // --- 3. Spam Detection Logic ---
+
+        async function handleSpamDetection(event) {
+            event.preventDefault(); // Stop form from submitting normally
+            
+            const form = document.getElementById('spam-form');
+            const data = new FormData(form);
+            
+            // Convert FormData to a JSON object
+            const payload = {};
+            for (const [key, value] of data.entries()) {
+                payload[key] = value;
+            }
+
+            showLoading();
+
+            const result = await secureFetch(`${API_BASE_URL}/spam_detect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            hideStatus();
+
+            if (result) {
+                displaySpamPrediction(result);
+            }
+        }
+
+        function displaySpamPrediction(data) {
+            const resultDiv = document.getElementById('prediction-result');
+            const isSpam = data.prediction === 'Spam';
+            
+            let color, icon, message;
+
+            if (isSpam) {
+                color = 'bg-warning-red border-warning-red';
+                icon = `<svg class="w-12 h-12 mb-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.3 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+                message = "This email is highly suspicious and should be treated as **SPAM**.";
+            } else {
+                color = 'bg-success-green border-success-green';
+                icon = `<svg class="w-12 h-12 mb-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.276A11.955 11.955 0 0112 2c-4.006 0-7.79 1.494-10.618 4.018a2 2 0 00-.54 1.792L4 18h16l2.158-10.19a2 2 0 00-.54-1.792z"></path></svg>`;
+                message = "This email appears **SAFE** based on the characteristics provided.";
+            }
+
+            resultDiv.className = `flex flex-col items-center justify-center p-8 min-h-[300px] border-4 ${color} text-white rounded-xl shadow-xl transition-all duration-500 result-box`;
+            resultDiv.innerHTML = `
+                ${icon}
+                <h4 class="text-3xl font-extrabold mb-2">${data.prediction}</h4>
+                <p class="text-lg font-semibold mb-4">Confidence: ${data.confidence}</p>
+                <p class="text-center italic">${message.replace('**', '<b>').replace('**', '</b>')}</p>
+            `;
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup navigation click handlers
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const viewId = link.getAttribute('data-view');
+                    switchView(viewId);
+                });
+            });
+
+            // Set up spam form submission handler
+            document.getElementById('spam-form').addEventListener('submit', handleSpamDetection);
+            
+            // Start on the home view
+            switchView('home');
+        });
+    </script>
+</body>
+</html>
